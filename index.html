@@ -177,7 +177,7 @@ updateDays();loadMap();rerender();
   js.onerror=()=>fail('No se descargó la librería del mapa');
   js.onload=()=>{
    try{
-    if(!maplibregl.supported())return fail('El navegador no admite WebGL');
+    if(typeof maplibregl.Map!=='function')return fail('MapLibre no se cargó correctamente');
     live=new maplibregl.Map({container:panel,style:'https://api.maptiler.com/maps/streets-v2/style.json?key=Xf2jyOxklvmsWOOhUZdt',center:[-99.14,19.38],zoom:10.7});
     live.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
     const timer=setTimeout(()=>{if(!loaded)fail('MapTiler no respondió a tiempo')},12000);
