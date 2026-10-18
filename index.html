@@ -277,6 +277,36 @@ updateDays();loadMap();rerender();
    box.append(h,d,a);marker.bindPopup(box);dots.addLayer(marker);
   }
  }
+ const marketLayerState={on:false,points:[],layer:null};
+ const marketControl=document.createElement('label');
+ marketControl.id='marketLayerControl';
+ marketControl.style.cssText='display:flex;align-items:center;gap:9px;padding:11px 14px;margin:0 0 10px;border:1px solid #bddfbd;border-radius:14px;background:#f2fff3;color:#27723b;font-size:13px;font-weight:800;cursor:pointer';
+ marketControl.innerHTML='<input type="checkbox" id="marketsToggle" style="width:19px;height:19px;accent-color:#26944f"><span>Mostrar mercados públicos <small id="marketsCount" style="font-weight:400">(cargando catálogo…)</small></span>';
+ holder.parentElement.insertBefore(marketControl,holder);
+ const mcheck=marketControl.querySelector('#marketsToggle');
+ function drawMarkets(){
+  if(!map||!window.L)return;
+  if(marketLayerState.layer)map.removeLayer(marketLayerState.layer);
+  if(!marketLayerState.on)return;
+  const group=L.layerGroup();
+  for(const p of marketLayerState.points){
+   const point=L.circleMarker([p.lat,p.lng],{radius:6,color:'#17643d',weight:1.6,fillColor:'#33bf72',fillOpacity:.92});
+   const el=document.createElement('div'),head=document.createElement('strong'),detail=document.createElement('p');
+   head.textContent='Mercado '+p.name;
+   detail.textContent=[p.col,p.alc,p.address].filter(Boolean).join(' · ');
+   const link=document.createElement('a');link.href='https://www.google.com/maps/dir/?api=1&destination='+p.lat+','+p.lng;link.textContent='Cómo llegar ↗';link.target='_blank';link.rel='noopener';
+   el.append(head,detail,link);point.bindPopup(el);point.addTo(group);
+  }
+  marketLayerState.layer=group;group.addTo(map);
+ }
+ mcheck.addEventListener('change',()=>{marketLayerState.on=mcheck.checked;drawMarkets()});
+ fetch('./mercados_cdmx.csv?v=1').then(r=>{if(!r.ok)throw Error('Archivo pendiente de subir');return r.text()}).then(csv=>{
+  const rows=parseCSV(csv),fields=rows.shift().map(k=>k.trim().toLowerCase());
+  const col=k=>fields.indexOf(k);
+  marketLayerState.points=rows.map(r=>({name:r[col('mercado')]||'',address:r[col('direccion')]||'',col:r[col('colonia_mercado')]||'',alc:r[col('alcaldia_mercado')]||'',lat:Number(r[col('latitud')]),lng:Number(r[col('longitud')])})).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)&&p.lat>18.9&&p.lat<19.7&&p.lng>-99.5&&p.lng<-98.8);
+  marketControl.querySelector('#marketsCount').textContent='('+marketLayerState.points.length+')';
+  if(marketLayerState.on)drawMarkets();
+ }).catch(()=>{marketControl.querySelector('#marketsCount').textContent='(falta subir mercados_cdmx.csv)'});
  const baseRender=renderMap;renderMap=function(){baseRender();if(mode==='online')renderPins()};
  button.addEventListener('click',()=>{if(mode==='online')setMode('offline');else if(map){notice('');setMode('online')}else begin()});
  function begin(){
@@ -291,7 +321,7 @@ updateDays();loadMap();rerender();
     const cdmxBounds=L.latLngBounds([19.03,-99.42],[19.65,-98.87]);
     map=L.map(panel,{preferCanvas:true,zoomControl:true,maxBounds:cdmxBounds,maxBoundsViscosity:1,minZoom:11}).setView([19.38,-99.14],11);
     map.whenReady(()=>map.panInsideBounds(cdmxBounds,{animate:false}));
-    dots=L.layerGroup().addTo(map);
+    dots=L.layerGroup().addTo(map);if(marketLayerState.on)drawMarkets();
     let loaded=false,errors=0;
     const tiles=L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=Xf2jyOxklvmsWOOhUZdt',{tileSize:256,maxZoom:19,minZoom:8,attribution:'© MapTiler © OpenStreetMap contributors'});
     tiles.on('tileload',()=>{if(!loaded){loaded=true;state='ready';button.disabled=false;notice('');setMode('online')}});
