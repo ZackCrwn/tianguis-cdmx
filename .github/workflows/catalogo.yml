@@ -1,8 +1,6 @@
 name: Actualizar catálogo de tianguis
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '10 11 * * 1'
 permissions:
   contents: write
 jobs:
