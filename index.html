@@ -77,7 +77,24 @@ body{background:radial-gradient(circle at 85% 3%,#ffe0d8 0,transparent 33%),radi
 {name:'Mercado sobre ruedas de Lomas de Sotelo',alc:'Miguel Hidalgo',col:'Lomas de Sotelo',address:'Presa Salinillas entre Anillo Periférico y Presa Valsequillo',days:['Sáb'],kind:'Mercado sobre ruedas'},
 {name:'Mercado sobre ruedas del Ajusco',alc:'Coyoacán',col:'Ajusco',address:'Coras esquina Nezahualcóyotl',days:['Dom'],kind:'Mercado sobre ruedas'}
 ].map((x,i)=>({...x,id:'example-'+i,source:'SEDECO · rutas históricas',start:'',end:'',verified:false,lat:null,lng:null}));
-const $=s=>document.querySelector(s);const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();const store=(k,v)=>localStorage.setItem(k,JSON.stringify(v));const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};let extras=load('tx_extras',[]),patches=load('tx_patches',{}),fav=new Set(load('tx_favorites',[])),official=load('tx_official',[]),day='',map=null,layer=null,filtered=[];let data=[];const full=()=>{const set=new Map();for(const x of [...(official.length?[]:startData),...official,...extras])set.set(x.id,{...x,...(patches[x.id]||{})});data=[...set.values()];};
+const $=s=>document.querySelector(s);const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();const store=(k,v)=>localStorage.setItem(k,JSON.stringify(v));const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};let extras=load('tx_extras',[]),patches=load('tx_patches',{}),fav=new Set(load('tx_favorites',[])),official=load('tx_official',[]),day='',map=null,layer=null,filtered=[];let data=[];const full=()=>{
+ const set=new Map();
+ for(const x of [...(official.length?[]:startData),...official,...extras])set.set(x.id,{...x,...(patches[x.id]||{})});
+ const groups=new Map();
+ for(const item of set.values()){
+  // El mismo puesto en varios días comparte ubicación, colonia y alcaldía.
+  // No agrupar lugares distintos solo porque estén cerca.
+  const n=v=>norm(v).replace(/[^a-z0-9]/g,'');
+  const hasCoord=Number.isFinite(item.lat)&&Number.isFinite(item.lng);
+  const location=hasCoord?item.lat.toFixed(4)+','+item.lng.toFixed(4):'sincoord:'+n(item.address);
+  const key=item.id.startsWith('custom-')?'manual:'+item.id:n(item.alc)+'|'+n(item.col)+'|'+location;
+  if(!groups.has(key)){groups.set(key,{...item,days:[...new Set(item.days||[])]});continue}
+  const prev=groups.get(key);
+  prev.days=[...new Set([...(prev.days||[]),...(item.days||[])])].sort((a,b)=>DAYS.indexOf(a)-DAYS.indexOf(b));
+  if(!prev.address&&item.address)prev.address=item.address;
+ }
+ data=[...groups.values()];
+};
 // Mapa geográfico vectorial propio: sin librerías, mosaicos ni peticiones a servidores.
 const view={scale:1,dx:0,dy:0,drag:false,x:0,y:0,oldX:0,oldY:0};
 const W=765,H=1024;
