@@ -171,7 +171,7 @@ updateDays();loadMap();rerender();
   js.onload=()=>{
    try{
     if(!maplibregl.supported())return fail();
-    live=new maplibregl.Map({container:panel,style:'https://tiles.openfreemap.org/styles/liberty',center:[-99.14,19.38],zoom:10.7});
+    live=new maplibregl.Map({container:panel,style:'https://api.maptiler.com/maps/streets-v2/style.json?key=Xf2jyOxklvmsWOOhUZdt',center:[-99.14,19.38],zoom:10.7});
     live.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
     const timer=setTimeout(()=>{if(!loaded)fail()},12000);
     live.once('load',()=>{clearTimeout(timer);loaded=true;loading=false;button.disabled=false;setMode('online')});
@@ -183,5 +183,7 @@ updateDays();loadMap();rerender();
  window.addEventListener('resize',()=>{if(mode==='online')live?.resize()});
  document.querySelectorAll('[data-mobile-view="map"]').forEach(el=>el.addEventListener('click',()=>setTimeout(()=>{if(mode==='online')live?.resize()},150)));
  setMode('offline');
+ // Inicializar automáticamente MapTiler al abrir la aplicación; se mantiene el plano alternativo.
+ loadOnline();
 })();
 </script></body></html>
