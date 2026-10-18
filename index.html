@@ -131,56 +131,59 @@ updateDays();loadMap();rerender();
  document.querySelectorAll('.gift .actions button').forEach(b=>b.addEventListener('click',()=>{if(window.innerWidth<=760)selectMobile('explore')}));
 })();
 
-// Calles reales cuando el proveedor de mapas está disponible; plano de coordenadas como respaldo.
+// Mapa de calles vectorial sin API key: OpenFreeMap + MapLibre.
 (function(){
- const mapEl=document.querySelector('#map');
- if(!mapEl)return;
- mapEl.style.position='relative';
- const street=document.createElement('div');street.id='streetMap';mapEl.appendChild(street);
- const toggle=document.createElement('button');toggle.type='button';toggle.id='mapStreetToggle';toggle.textContent='Ver calles';mapEl.appendChild(toggle);
- let streetMap=null,markers=null,streetOn=false;
- function setMode(enabled){
-   streetOn=!!enabled&&!!streetMap;
-   mapEl.classList.toggle('street-ready',streetOn);
-   mapEl.classList.toggle('offline-fallback',!streetOn);
-   toggle.textContent=streetOn?'Ver plano sin conexión':'Ver calles';
-   if(streetOn){streetMap.invalidateSize();drawStreets();}
+ const holder=document.querySelector('#map'),panel=document.querySelector('#streetMap'),switcher=document.querySelector('#mapStreetToggle');
+ if(!holder||!panel||!switcher)return;
+ let live=null,enabled=false,ready=false;
+ function fallback(reason){
+   holder.classList.remove('street-ready');holder.classList.add('offline-fallback');
+   enabled=false;switcher.textContent='Intentar mapa de calles';
+   if(reason)console.warn('Mapa de calles: '+reason);
  }
- function drawStreets(){
-   if(!streetMap||!markers)return;
-   markers.clearLayers();
-   const points=(typeof filtered!=='undefined'?filtered:[]).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)&&p.lat>=18.9&&p.lat<=19.7&&p.lng>=-99.5&&p.lng<=-98.8);
-   for(const p of points){
-     const marker=L.circleMarker([p.lat,p.lng],{radius:5,color:'#853c55',weight:1,fillColor:'#ff4b91',fillOpacity:.85});
-     const title=document.createElement('div');
-     const strong=document.createElement('strong');strong.textContent=p.name;title.appendChild(strong);
-     const desc=document.createElement('p');desc.textContent=[p.col,p.alc,p.address,p.days?.join(', ')].filter(Boolean).join(' · ');title.appendChild(desc);
-     const a=document.createElement('a');a.href=google(p);a.target='_blank';a.rel='noopener';a.textContent='Cómo llegar ↗';title.appendChild(a);
-     marker.bindPopup(title);markers.addLayer(marker);
-   }
+ function display(){
+   if(!ready||!live){fallback('Todavía no está disponible');return}
+   enabled=true;holder.classList.remove('offline-fallback');holder.classList.add('street-ready');
+   switcher.textContent='Ver plano sin conexión';
+   live.resize();redraw();
  }
- toggle.addEventListener('click',()=>setMode(!streetOn));
- const originalRender=renderMap;
- renderMap=function(){originalRender();if(streetOn)drawStreets()};
- // Carga diferida: el sitio y su plano propio siguen operativos si CDN o mosaicos fallan.
- const style=document.createElement('link');style.rel='stylesheet';style.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(style);
- const script=document.createElement('script');script.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+ function redraw(){
+  if(!live||!live.isStyleLoaded())return;
+  const collection={type:'FeatureCollection',features:filtered.filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)&&p.lat>18.8&&p.lat<20&&p.lng>-100&&p.lng<-98.5).map(p=>({type:'Feature',geometry:{type:'Point',coordinates:[p.lng,p.lat]},properties:{name:p.name,col:p.col||'',alc:canonicalAlc(p.alc),address:p.address||'',days:(p.days||[]).join(', '),link:google(p)}}))};
+  const source=live.getSource('tianguis');
+  if(source){source.setData(collection);return}
+  live.addSource('tianguis',{type:'geojson',data:collection});
+  live.addLayer({id:'tianguis-points',type:'circle',source:'tianguis',paint:{'circle-radius':5,'circle-color':'#ff4b91','circle-opacity':.88,'circle-stroke-color':'#87344f','circle-stroke-width':1}});
+  live.on('click','tianguis-points',e=>{
+   const f=e.features?.[0];if(!f)return;
+   const p=f.properties;
+   const root=document.createElement('div');
+   const strong=document.createElement('strong');strong.textContent=p.name;root.appendChild(strong);
+   const desc=document.createElement('p');desc.textContent=[p.col,p.alc,p.address,p.days].filter(Boolean).join(' · ');root.appendChild(desc);
+   const a=document.createElement('a');a.href=p.link;a.target='_blank';a.rel='noopener';a.textContent='Cómo llegar ↗';root.appendChild(a);
+   new maplibregl.Popup().setLngLat(e.lngLat).setDOMContent(root).addTo(live);
+  });
+  live.on('mouseenter','tianguis-points',()=>{live.getCanvas().style.cursor='pointer'});
+  live.on('mouseleave','tianguis-points',()=>{live.getCanvas().style.cursor=''});
+ }
+ const original=renderMap;renderMap=function(){original();if(enabled)redraw()};
+ switcher.addEventListener('click',()=>{if(enabled)fallback();else display()});
+ const css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.append(css);
+ const script=document.createElement('script');script.src='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+ script.onerror=()=>fallback('No se pudo cargar MapLibre');
  script.onload=()=>{
-   try{
-     streetMap=L.map(street,{preferCanvas:true,zoomControl:true,attributionControl:true}).setView([19.385,-99.14],11);
-     const tiles=L.tileLayer('https://tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',{maxZoom:19,minZoom:9,attribution:'© OpenStreetMap contributors · HOT'});
-     let goodTile=false;
-     tiles.on('tileload',()=>{if(!goodTile){goodTile=true;setMode(true)}});
-     tiles.on('tileerror',()=>{if(!goodTile)setMode(false)});
-     tiles.addTo(streetMap);
-     markers=L.layerGroup().addTo(streetMap);
-     setTimeout(()=>{if(!goodTile)setMode(false)},5500);
-   }catch(e){console.warn('Plano de calles no disponible',e);setMode(false)}
+  try{
+   if(!maplibregl.supported()){fallback('WebGL no disponible');return}
+   live=new maplibregl.Map({container:panel,style:'https://tiles.openfreemap.org/styles/liberty',center:[-99.14,19.38],zoom:10.7,attributionControl:true});
+   live.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
+   let watchdog=setTimeout(()=>{if(!ready)fallback('El proveedor no respondió')},10000);
+   live.on('load',()=>{clearTimeout(watchdog);ready=true;display()});
+   live.on('error',e=>{if(!ready)console.warn('Esperando mapas: ',e.error?.message)});
+  }catch(err){fallback(err.message)}
  };
- script.onerror=()=>setMode(false);
- document.head.appendChild(script);
- window.addEventListener('resize',()=>{if(streetOn)streetMap.invalidateSize()});
- document.querySelectorAll('[data-mobile-view="map"]').forEach(b=>b.addEventListener('click',()=>setTimeout(()=>{if(streetOn)streetMap.invalidateSize()},120)));
- setMode(false);
+ document.head.append(script);
+ window.addEventListener('resize',()=>{if(enabled)live?.resize()});
+ document.querySelectorAll('[data-mobile-view="map"]').forEach(b=>b.addEventListener('click',()=>setTimeout(()=>{if(enabled)live?.resize()},180)));
+ fallback();
 })();
 </script></body></html>
