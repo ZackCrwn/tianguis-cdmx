@@ -49,7 +49,7 @@ body{background:radial-gradient(circle at 85% 3%,#ffe0d8 0,transparent 33%),radi
 {name:'Mercado sobre ruedas de Lomas de Sotelo',alc:'Miguel Hidalgo',col:'Lomas de Sotelo',address:'Presa Salinillas entre Anillo Periférico y Presa Valsequillo',days:['Sáb'],kind:'Mercado sobre ruedas'},
 {name:'Mercado sobre ruedas del Ajusco',alc:'Coyoacán',col:'Ajusco',address:'Coras esquina Nezahualcóyotl',days:['Dom'],kind:'Mercado sobre ruedas'}
 ].map((x,i)=>({...x,id:'example-'+i,source:'SEDECO · rutas históricas',start:'',end:'',verified:false,lat:null,lng:null}));
-const $=s=>document.querySelector(s);const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();const store=(k,v)=>localStorage.setItem(k,JSON.stringify(v));const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};let extras=load('tx_extras',[]),patches=load('tx_patches',{}),fav=new Set(load('tx_favorites',[])),official=load('tx_official',[]),day='',map=null,layer=null,filtered=[];let data=[];const full=()=>{const set=new Map();for(const x of [...startData,...official,...extras])set.set(x.id,{...x,...(patches[x.id]||{})});data=[...set.values()];};
+const $=s=>document.querySelector(s);const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();const store=(k,v)=>localStorage.setItem(k,JSON.stringify(v));const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};let extras=load('tx_extras',[]),patches=load('tx_patches',{}),fav=new Set(load('tx_favorites',[])),official=load('tx_official',[]),day='',map=null,layer=null,filtered=[];let data=[];const full=()=>{const set=new Map();for(const x of [...(official.length?[]:startData),...official,...extras])set.set(x.id,{...x,...(patches[x.id]||{})});data=[...set.values()];};
 // Mapa geográfico vectorial propio: sin librerías, mosaicos ni peticiones a servidores.
 const view={scale:1,dx:0,dy:0,drag:false,x:0,y:0,oldX:0,oldY:0};
 const W=900,H=650;
@@ -167,7 +167,7 @@ updateDays();loadMap();rerender();
  script.onload=()=>{
    try{
      streetMap=L.map(street,{preferCanvas:true,zoomControl:true,attributionControl:true}).setView([19.385,-99.14],11);
-     const tiles=L.tileLayer('https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',{maxZoom:19,minZoom:9,attribution:'© OpenStreetMap contributors · CARTO'});
+     const tiles=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,minZoom:9,attribution:'Tiles © Esri · OpenStreetMap contributors'});
      let goodTile=false;
      tiles.on('tileload',()=>{if(!goodTile){goodTile=true;setMode(true)}});
      tiles.on('tileerror',()=>{if(!goodTile)setMode(false)});
