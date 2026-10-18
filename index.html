@@ -133,8 +133,15 @@ updateDays();loadMap();rerender();
 
 // Selector de mapas: el mapa de alcaldías es la vista predeterminada.
 (function(){
- const holder=document.querySelector('#map'),panel=document.querySelector('#streetMap'),button=document.querySelector('#mapStreetToggle');
- if(!holder||!panel||!button)return;
+ const holder=document.querySelector('#map');
+ if(!holder)return;
+ holder.style.position='relative';
+ let panel=holder.querySelector('#streetMap');
+ if(!panel){panel=document.createElement('div');panel.id='streetMap';holder.appendChild(panel)}
+ let button=holder.querySelector('#mapStreetToggle');
+ if(!button){button=document.createElement('button');button.id='mapStreetToggle';button.type='button';holder.appendChild(button)}
+ button.style.cssText='position:absolute;z-index:9999;right:12px;bottom:16px;display:block;visibility:visible;opacity:1;background:#fff;color:#952b57;border:2px solid #f4afcd;border-radius:12px;padding:12px 16px;font-weight:800;cursor:pointer;box-shadow:0 3px 16px #0003;pointer-events:auto';
+ panel.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:2';
  let live=null,loaded=false,mode='offline',loading=false;
  const setMode=modeNext=>{
   mode=modeNext;
