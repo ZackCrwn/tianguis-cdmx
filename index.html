@@ -194,6 +194,54 @@ updateDays();loadMap();rerender();
  button.style.cssText='position:absolute;top:12px;right:12px;bottom:auto;z-index:9999;background:#fff;color:#982c57;border:2px solid #f5bad3;border-radius:12px;padding:11px 15px;font-weight:750;cursor:pointer;box-shadow:0 3px 12px #0002';
  panel.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:2';
  let map=null,dots=null,mode='offline',state='loading';
+ const transportConfig=[
+  {id:'metro',name:'Metro',layer:0,color:'#ed8b22'},
+  {id:'metrobus',name:'Metrobús',layer:2,color:'#c22f49'},
+  {id:'trolebus',name:'Trolebús',layer:6,color:'#357fc5'},
+  {id:'ligero',name:'Tren Ligero',layer:8,color:'#2c9974'}
+ ];
+ const transitLayers={};const transitCache={};
+ const transitBox=document.createElement('div');transitBox.id='transitControls';
+ transitBox.style.cssText='position:absolute;z-index:1001;top:59px;right:12px;background:#fffefefa;border:1px solid #f3cbdd;border-radius:14px;padding:9px 10px;box-shadow:0 4px 14px #0002;font-size:12px;color:#8f2b55;max-width:180px';
+ transitBox.innerHTML='<div style="font-weight:850;margin-bottom:7px">Transporte público</div>'+transportConfig.map(t=>'<label style="display:flex;align-items:center;gap:7px;margin:7px 0;cursor:pointer"><input type="checkbox" data-transit="'+t.id+'" style="accent-color:'+t.color+'"><span style="display:inline-block;width:9px;height:9px;background:'+t.color+';border-radius:50%"></span>'+t.name+'</label>').join('')+'<small id="transitState" style="display:block;color:#936c7e;max-width:160px">Activa una capa para ver estaciones.</small>';
+ holder.append(transitBox);
+ const sourceBase='https://serviciosatlas.sgirpc.cdmx.gob.mx/arcgis/rest/services/AtlasCapasPublicas/Movilidad_Integrada_CDMX/FeatureServer/';
+ async function loadTransit(config){
+  if(transitCache[config.id])return transitCache[config.id];
+  const url=sourceBase+config.layer+'/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json&resultRecordCount=1000';
+  const response=await fetch(url);
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const payload=await response.json();
+  if(payload.error)throw Error(payload.error.message||'Error del servicio');
+  if(!Array.isArray(payload.features))throw Error('No se recibieron estaciones');
+  transitCache[config.id]=payload.features.map(f=>({
+   lat:Number(f.geometry?.y),lng:Number(f.geometry?.x),attrs:f.attributes||{}
+  })).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)&&p.lat>18.9&&p.lat<19.7&&p.lng>-99.5&&p.lng<-98.8);
+  return transitCache[config.id];
+ }
+ transitBox.addEventListener('change',async e=>{
+  const input=e.target.closest('[data-transit]');if(!input)return;
+  const config=transportConfig.find(t=>t.id===input.dataset.transit);if(!config||!map){input.checked=false;return}
+  if(!input.checked){if(transitLayers[config.id])map.removeLayer(transitLayers[config.id]);return}
+  const stateEl=transitBox.querySelector('#transitState');stateEl.textContent='Cargando '+config.name+'…';input.disabled=true;
+  try{
+   const points=await loadTransit(config);
+   const group=L.layerGroup();
+   points.forEach(p=>{
+    const dot=L.circleMarker([p.lat,p.lng],{radius:5,color:'#fff',weight:1.5,fillColor:config.color,fillOpacity:1});
+    const detail=document.createElement('div');
+    const title=document.createElement('strong');
+    const props=p.attrs;const label=Object.entries(props).find(([k,v])=>/nombre|estacion|station|name/i.test(k)&&typeof v==='string'&&v.trim())?.[1]||config.name;
+    title.textContent=config.name+' · '+label;detail.append(title);
+    dot.bindPopup(detail);dot.addTo(group);
+   });
+   transitLayers[config.id]=group;
+   if(input.checked)group.addTo(map);
+   stateEl.textContent=points.length+' paradas o estaciones cargadas de '+config.name+'.';
+  }catch(err){input.checked=false;stateEl.textContent='No se pudo cargar '+config.name+': '+err.message}
+  finally{input.disabled=false}
+ });
+
  const status=document.createElement('div');status.style.cssText='position:absolute;bottom:12px;left:12px;z-index:10000;background:#fff9;padding:7px 12px;border-radius:9px;font-size:12px;max-width:74%;color:#8d3453;display:none';holder.append(status);
  function notice(message){status.textContent=message;status.style.display=message?'block':'none'}
  function setMode(next){
@@ -202,6 +250,7 @@ updateDays();loadMap();rerender();
   holder.classList.toggle('street-ready',online);
   holder.classList.toggle('offline-fallback',!online);
   button.textContent=online?'Ver mapa de alcaldías':'Ver calles (MapTiler)';
+  transitBox.style.display=online?'block':'none';
   if(online){setTimeout(()=>{map.invalidateSize();renderPins()},80)}
  }
  function renderPins(){
