@@ -463,6 +463,9 @@ updateDays();loadMap();rerender();
   buttonRow.append(b);
   b.addEventListener('click',()=>document.getElementById('quickVisit')?.click());
  }
+ const tomorrow=document.getElementById('quickTomorrow');
+ const advanced=document.getElementById('advancedFilters');
+ if(tomorrow&&advanced){tomorrow.className='btn secondary small';tomorrow.style.margin='6px 0 10px';tomorrow.style.width='100%';tomorrow.textContent='Ver tianguis de mañana';advanced.append(tomorrow)}
  const nearby=document.getElementById('nearbyDrawer');
  const five=document.getElementById('quickFive');
  five?.addEventListener('click',()=>{if(!navigator.geolocation)nearby.open=true});
