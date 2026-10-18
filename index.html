@@ -131,67 +131,62 @@ updateDays();loadMap();rerender();
  document.querySelectorAll('.gift .actions button').forEach(b=>b.addEventListener('click',()=>{if(window.innerWidth<=760)selectMobile('explore')}));
 })();
 
-// Selector de mapas: el mapa de alcaldías es la vista predeterminada.
+// Mapa de calles MapTiler con Leaflet, sin dependencia de MapLibre.
 (function(){
- const holder=document.querySelector('#map');
- if(!holder)return;
+ const holder=document.querySelector('#map');if(!holder)return;
  holder.style.position='relative';
- let panel=holder.querySelector('#streetMap');
- if(!panel){panel=document.createElement('div');panel.id='streetMap';holder.appendChild(panel)}
- let button=holder.querySelector('#mapStreetToggle');
- if(!button){button=document.createElement('button');button.id='mapStreetToggle';button.type='button';holder.appendChild(button)}
- button.style.cssText='position:absolute;z-index:9999;right:65px;top:12px;bottom:auto;display:block;visibility:visible;opacity:1;background:#fff;color:#952b57;border:2px solid #f4afcd;border-radius:12px;padding:12px 16px;font-weight:800;cursor:pointer;box-shadow:0 3px 16px #0003;pointer-events:auto';
+ let panel=holder.querySelector('#streetMap');if(!panel){panel=document.createElement('div');panel.id='streetMap';holder.append(panel)}
+ let button=holder.querySelector('#mapStreetToggle');if(!button){button=document.createElement('button');button.id='mapStreetToggle';button.type='button';holder.append(button)}
+ button.style.cssText='position:absolute;top:12px;right:12px;bottom:auto;z-index:9999;background:#fff;color:#982c57;border:2px solid #f5bad3;border-radius:12px;padding:11px 15px;font-weight:750;cursor:pointer;box-shadow:0 3px 12px #0002';
  panel.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:2';
- let live=null,loaded=false,mode='offline',loading=false;let failure='';
- const setMode=modeNext=>{
-  mode=modeNext;
-  holder.classList.toggle('street-ready',mode==='online'&&loaded);
-  holder.classList.toggle('offline-fallback',mode!=='online'||!loaded);
-  button.textContent=mode==='online'?'Ver alcaldías':failure?'Reintentar calles':'Ver calles (MapTiler)';
-  if(mode==='online'&&loaded){live.resize();drawMarkers();}
- };
- const drawMarkers=()=>{
-  if(!loaded||!live?.isStyleLoaded())return;
-  const geo={type:'FeatureCollection',features:filtered.filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)).map(p=>({type:'Feature',geometry:{type:'Point',coordinates:[p.lng,p.lat]},properties:{name:p.name,col:p.col||'',alc:canonicalAlc(p.alc),address:p.address||'',days:(p.days||[]).join(', '),link:google(p)}}))};
-  const src=live.getSource('tianguis');
-  if(src){src.setData(geo);return}
-  live.addSource('tianguis',{type:'geojson',data:geo});
-  live.addLayer({id:'tianguis-dots',type:'circle',source:'tianguis',paint:{'circle-color':'#ff438b','circle-radius':5,'circle-stroke-color':'#732743','circle-stroke-width':1}});
-  live.on('click','tianguis-dots',ev=>{
-   const p=ev.features?.[0]?.properties;if(!p)return;
-   const d=document.createElement('div');
-   const h=document.createElement('strong');h.textContent=p.name;d.append(h);
-   const info=document.createElement('p');info.textContent=[p.col,p.alc,p.address,p.days].filter(Boolean).join(' · ');d.append(info);
-   const link=document.createElement('a');link.href=p.link;link.target='_blank';link.rel='noopener';link.textContent='Cómo llegar ↗';d.append(link);
-   new maplibregl.Popup().setLngLat(ev.lngLat).setDOMContent(d).addTo(live);
-  });
- };
- const original=renderMap;renderMap=function(){original();if(mode==='online')drawMarkers()};
- const loadOnline=()=>{
-  if(loaded){setMode('online');return}
-  if(loading)return;
-  failure='';document.querySelector('#mapError')?.remove();loading=true;button.disabled=true;button.textContent='Cargando calles…';
-  const css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.append(css);
-  const js=document.createElement('script');js.src='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
-  const fail=(message='No se pudo cargar el mapa de calles')=>{loading=false;button.disabled=false;failure=message;setMode('offline');let notice=document.querySelector('#mapError');if(!notice){notice=document.createElement('div');notice.id='mapError';notice.style.cssText='position:absolute;z-index:9000;left:12px;bottom:12px;background:#fff8f9;padding:8px 12px;border-radius:10px;color:#9a3154;font-size:12px;max-width:75%;box-shadow:0 3px 10px #0002';holder.appendChild(notice)}notice.textContent=message;};
-  js.onerror=()=>fail('No se descargó la librería del mapa');
-  js.onload=()=>{
+ let map=null,dots=null,mode='offline',state='loading';
+ const status=document.createElement('div');status.style.cssText='position:absolute;bottom:12px;left:12px;z-index:10000;background:#fff9;padding:7px 12px;border-radius:9px;font-size:12px;max-width:74%;color:#8d3453;display:none';holder.append(status);
+ function notice(message){status.textContent=message;status.style.display=message?'block':'none'}
+ function setMode(next){
+  mode=next;
+  const online=next==='online'&&!!map;
+  holder.classList.toggle('street-ready',online);
+  holder.classList.toggle('offline-fallback',!online);
+  button.textContent=online?'Ver mapa de alcaldías':'Ver calles (MapTiler)';
+  if(online){setTimeout(()=>{map.invalidateSize();renderPins()},80)}
+ }
+ function renderPins(){
+  if(!map||!dots)return;
+  dots.clearLayers();
+  for(const p of filtered){
+   if(!Number.isFinite(p.lat)||!Number.isFinite(p.lng))continue;
+   const marker=L.circleMarker([p.lat,p.lng],{radius:5,color:'#852c50',weight:1,fillColor:'#f64e91',fillOpacity:.82});
+   const box=document.createElement('div'),h=document.createElement('strong'),d=document.createElement('p'),a=document.createElement('a');
+   h.textContent=p.name;d.textContent=[p.col,canonicalAlc(p.alc),p.address,(p.days||[]).join(', ')].filter(Boolean).join(' · ');
+   a.textContent='Cómo llegar ↗';a.href=google(p);a.target='_blank';a.rel='noopener';
+   box.append(h,d,a);marker.bindPopup(box);dots.addLayer(marker);
+  }
+ }
+ const baseRender=renderMap;renderMap=function(){baseRender();if(mode==='online')renderPins()};
+ button.addEventListener('click',()=>{if(mode==='online')setMode('offline');else if(map){notice('');setMode('online')}else begin()});
+ function begin(){
+  if(state==='loading')return;
+  state='loading';button.textContent='Cargando calles…';button.disabled=true;
+  const stylesheet=document.createElement('link');stylesheet.rel='stylesheet';stylesheet.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.append(stylesheet);
+  const script=document.createElement('script');script.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  function fail(msg){state='error';button.disabled=false;notice(msg);setMode('offline')}
+  script.onerror=()=>fail('No fue posible descargar Leaflet');
+  script.onload=()=>{
    try{
-    if(typeof maplibregl.Map!=='function')return fail('MapLibre no se cargó correctamente');
-    live=new maplibregl.Map({container:panel,style:'https://api.maptiler.com/maps/streets-v2/style.json?key=Xf2jyOxklvmsWOOhUZdt',center:[-99.14,19.38],zoom:10.7});
-    live.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
-    const timer=setTimeout(()=>{if(!loaded)fail('MapTiler no respondió a tiempo')},12000);
-    live.once('load',()=>{clearTimeout(timer);loaded=true;loading=false;failure='';button.disabled=false;document.querySelector('#mapError')?.remove();setMode('online')});
-    live.on('error',e=>{if(!loaded){clearTimeout(timer);fail('MapTiler: '+(e.error?.message||'error de carga'))}});
-   }catch(e){fail(e.message||'Error al iniciar MapTiler')}
+    map=L.map(panel,{preferCanvas:true,zoomControl:true}).setView([19.38,-99.14],11);
+    dots=L.layerGroup().addTo(map);
+    let loaded=false,errors=0;
+    const tiles=L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=Xf2jyOxklvmsWOOhUZdt',{tileSize:256,maxZoom:19,minZoom:8,attribution:'© MapTiler © OpenStreetMap contributors'});
+    tiles.on('tileload',()=>{if(!loaded){loaded=true;state='ready';button.disabled=false;notice('');setMode('online')}});
+    tiles.on('tileerror',()=>{errors++;if(errors>=3&&!loaded)fail('MapTiler no entregó los mosaicos. Revisa el acceso permitido a la API.')});
+    tiles.addTo(map);
+    setTimeout(()=>{if(!loaded&&state==='loading')fail('MapTiler no respondió. Puedes reintentar.')},11000);
+   }catch(e){fail(e.message||'No se pudo iniciar el mapa')}
   };
-  document.head.append(js);
- };
- button.addEventListener('click',()=>{if(mode==='online'){setMode('offline')}else loadOnline()});
- window.addEventListener('resize',()=>{if(mode==='online')live?.resize()});
- document.querySelectorAll('[data-mobile-view="map"]').forEach(el=>el.addEventListener('click',()=>setTimeout(()=>{if(mode==='online')live?.resize()},150)));
- setMode('offline');
- // Inicializar automáticamente MapTiler al abrir la aplicación; se mantiene el plano alternativo.
- loadOnline();
+  document.head.append(script);
+ }
+ state='idle';setMode('offline');begin();
+ window.addEventListener('resize',()=>{if(mode==='online')map?.invalidateSize()});
+ document.querySelectorAll('[data-mobile-view="map"]').forEach(btn=>btn.addEventListener('click',()=>setTimeout(()=>{if(mode==='online')map?.invalidateSize()},150)));
 })();
 </script></body></html>
