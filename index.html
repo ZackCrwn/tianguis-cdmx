@@ -227,7 +227,9 @@ updateDays();loadMap();rerender();
   script.onerror=()=>fail('No fue posible descargar Leaflet');
   script.onload=()=>{
    try{
-    map=L.map(panel,{preferCanvas:true,zoomControl:true}).setView([19.38,-99.14],11);
+    const cdmxBounds=L.latLngBounds([19.03,-99.42],[19.65,-98.87]);
+    map=L.map(panel,{preferCanvas:true,zoomControl:true,maxBounds:cdmxBounds,maxBoundsViscosity:1,minZoom:11}).setView([19.38,-99.14],11);
+    map.whenReady(()=>map.panInsideBounds(cdmxBounds,{animate:false}));
     dots=L.layerGroup().addTo(map);
     let loaded=false,errors=0;
     const tiles=L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=Xf2jyOxklvmsWOOhUZdt',{tileSize:256,maxZoom:19,minZoom:8,attribution:'© MapTiler © OpenStreetMap contributors'});
