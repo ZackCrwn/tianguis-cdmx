@@ -52,13 +52,13 @@ body{background:radial-gradient(circle at 85% 3%,#ffe0d8 0,transparent 33%),radi
 const $=s=>document.querySelector(s);const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();const store=(k,v)=>localStorage.setItem(k,JSON.stringify(v));const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};let extras=load('tx_extras',[]),patches=load('tx_patches',{}),fav=new Set(load('tx_favorites',[])),official=load('tx_official',[]),day='',map=null,layer=null,filtered=[];let data=[];const full=()=>{const set=new Map();for(const x of [...(official.length?[]:startData),...official,...extras])set.set(x.id,{...x,...(patches[x.id]||{})});data=[...set.values()];};
 // Mapa geográfico vectorial propio: sin librerías, mosaicos ni peticiones a servidores.
 const view={scale:1,dx:0,dy:0,drag:false,x:0,y:0,oldX:0,oldY:0};
-const W=900,H=650;
+const W=765,H=1024;
 const xmin=-99.40,xmax=-98.92,ymin=19.04,ymax=19.63;
-const project=(lat,lng)=>[(lng-xmin)/(xmax-xmin)*W,(ymax-lat)/(ymax-ymin)*H];
+const project=(lat,lng)=>[(lng+99.37)/0.38*W,(19.61-lat)/0.50*H];
 const landmarks=[['Azcapotzalco',19.49,-99.18],['Gustavo A. Madero',19.49,-99.10],['Miguel Hidalgo',19.43,-99.20],['Cuauhtémoc',19.44,-99.145],['Venustiano Carranza',19.425,-99.105],['Iztacalco',19.395,-99.10],['Benito Juárez',19.385,-99.16],['Álvaro Obregón',19.36,-99.23],['Coyoacán',19.35,-99.16],['Iztapalapa',19.34,-99.065],['Tlalpan',19.29,-99.17],['Xochimilco',19.265,-99.105],['Tláhuac',19.28,-99.015],['Magdalena Contreras',19.31,-99.24],['Cuajimalpa',19.35,-99.30],['Milpa Alta',19.18,-99.03]];
 let screenPoints=[];
-function loadMap(){const el=$('#map');el.style.position='relative';el.innerHTML=`<div id="offlineWrap" style="position:relative;height:100%;min-height:550px;overflow:hidden;background:#12232d;touch-action:none"><svg id="atlas" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="display:block;width:100%;height:100%;position:absolute;inset:0;cursor:grab"><defs><pattern id="offlineGrid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0 H0 V48" fill="none" stroke="#365364" stroke-width=".8"/></pattern></defs><rect width="900" height="650" fill="#142936"/><g id="atlasTransform"><rect x="0" y="0" width="900" height="650" fill="url(#offlineGrid)"/><g id="districtLabels"></g><g id="mapDots"></g></g><text x="18" y="628" fill="#8fb1be" font-size="13">Plano de coordenadas · no incluye calles</text></svg><div style="position:absolute;left:12px;top:12px;background:#101d2de8;border:1px solid #425563;padding:8px 11px;border-radius:9px;font-size:12px;pointer-events:none">CDMX · Mapa integrado sin conexión</div><div style="position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:5px"><button class="linkbtn" id="zoomIn" title="Acercar">＋</button><button class="linkbtn" id="zoomOut" title="Alejar">－</button><button class="linkbtn" id="zoomReset" title="Centrar">◎</button></div><div id="pointInfo" style="display:none;position:absolute;bottom:12px;left:12px;right:12px;border:1px solid #506471;background:#15202ef5;border-radius:12px;padding:13px;max-width:410px;box-shadow:0 8px 25px #0007"></div></div>`;
- const labels=$('#districtLabels');labels.innerHTML=landmarks.map(([name,lat,lng])=>{let [x,y]=project(lat,lng);return `<text x="${x}" y="${y}" text-anchor="middle" fill="#87aab6" font-size="12" font-weight="600" opacity=".8" pointer-events="none">${safe(name)}</text>`}).join('');
+function loadMap(){const el=$('#map');el.style.position='relative';el.innerHTML=`<div id="offlineWrap" style="position:relative;height:100%;min-height:550px;overflow:hidden;background:#12232d;touch-action:none"><svg id="atlas" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="display:block;width:100%;height:100%;position:absolute;inset:0;cursor:grab"><defs><pattern id="offlineGrid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0 H0 V48" fill="none" stroke="#365364" stroke-width=".8"/></pattern></defs><rect width="765" height="1024" fill="#142936"/><g id="atlasTransform"><rect x="0" y="0" width="765" height="1024" fill="url(#offlineGrid)"/><image href="./mapa-alcaldias.png" x="0" y="0" width="765" height="1024" preserveAspectRatio="none"/><rect x="0" y="0" width="765" height="1024" fill="#fff" opacity=".06" pointer-events="none"/><g id="districtLabels"></g><g id="mapDots"></g></g><text x="18" y="1000" fill="#8fb1be" font-size="13">Mapa de alcaldías · ubicaciones aproximadas</text></svg><div style="position:absolute;left:12px;top:12px;background:#101d2de8;border:1px solid #425563;padding:8px 11px;border-radius:9px;font-size:12px;pointer-events:none">CDMX · Alcaldías (sin conexión)</div><div style="position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:5px"><button class="linkbtn" id="zoomIn" title="Acercar">＋</button><button class="linkbtn" id="zoomOut" title="Alejar">－</button><button class="linkbtn" id="zoomReset" title="Centrar">◎</button></div><div id="pointInfo" style="display:none;position:absolute;bottom:12px;left:12px;right:12px;border:1px solid #506471;background:#15202ef5;border-radius:12px;padding:13px;max-width:410px;box-shadow:0 8px 25px #0007"></div></div>`;
+ const labels=$('#districtLabels');labels.innerHTML=[].map(([name,lat,lng])=>{let [x,y]=project(lat,lng);return `<text x="${x}" y="${y}" text-anchor="middle" fill="#87aab6" font-size="12" font-weight="600" opacity=".8" pointer-events="none">${safe(name)}</text>`}).join('');
  $('#zoomIn').onclick=()=>changeZoom(1.5);$('#zoomOut').onclick=()=>changeZoom(1/1.5);$('#zoomReset').onclick=()=>{view.scale=1;view.dx=0;view.dy=0;updateTransform()};
  const svg=$('#atlas');svg.addEventListener('wheel',e=>{e.preventDefault();changeZoom(e.deltaY<0?1.25:0.8)},{passive:false});
  svg.addEventListener('pointerdown',e=>{if(e.target.closest('[data-marker]'))return;view.drag=true;view.x=e.clientX;view.y=e.clientY;view.oldX=view.dx;view.oldY=view.dy;svg.setPointerCapture(e.pointerId);svg.style.cursor='grabbing'});
@@ -68,15 +68,15 @@ function loadMap(){const el=$('#map');el.style.position='relative';el.innerHTML=
  $('#mapProvider').textContent='Plano interactivo incluido en el archivo · sin servidores externos';
 }
 function updateTransform(){$('#atlasTransform').setAttribute('transform',`translate(${view.dx} ${view.dy}) scale(${view.scale})`)}
-function changeZoom(f){const old=view.scale;view.scale=Math.min(12,Math.max(1,old*f));view.dx=450-(450-view.dx)*view.scale/old;view.dy=325-(325-view.dy)*view.scale/old;updateTransform()}
+function changeZoom(f){const old=view.scale;view.scale=Math.min(12,Math.max(1,old*f));view.dx=W/2-(W/2-view.dx)*view.scale/old;view.dy=H/2-(H/2-view.dy)*view.scale/old;updateTransform()}
 function showPoint(i){const x=screenPoints[i];if(!x)return;const info=$('#pointInfo');info.style.display='block';info.innerHTML=`<button id="closePoint" style="float:right;background:transparent;color:white;border:0;font-size:20px">×</button><strong>${safe(x.name)}</strong><p style="font-size:12px;color:#c1d1d9">${safe([x.col,x.alc,x.address].filter(Boolean).join(' · '))}<br>${safe(x.days.join(', ')||'Día no confirmado')}</p><a class="linkbtn" target="_blank" rel="noopener" href="${google(x)}">Abrir ubicación en Google Maps ↗</a>`;$('#closePoint').onclick=()=>info.style.display='none'}
-function focusPoint(x){const [px,py]=project(x.lat,x.lng);view.scale=5;view.dx=450-px*view.scale;view.dy=325-py*view.scale;updateTransform();let index=screenPoints.findIndex(p=>p.id===x.id);if(index>=0)showPoint(index);$('#map').scrollIntoView({behavior:'smooth',block:'center'})}
+function focusPoint(x){const [px,py]=project(x.lat,x.lng);view.scale=5;view.dx=W/2-px*view.scale;view.dy=H/2-py*view.scale;updateTransform();let index=screenPoints.findIndex(p=>p.id===x.id);if(index>=0)showPoint(index);$('#map').scrollIntoView({behavior:'smooth',block:'center'})}
 function canonicalAlc(value){const aliases={'gustavo a madero':'Gustavo A. Madero','cuajimalpa':'Cuajimalpa de Morelos','magdalena contreras':'La Magdalena Contreras'};const k=norm(value).replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();return aliases[k]||names.find(n=>norm(n).replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim()===k)||String(value||'').trim()}
 function syncControls(){const selected=canonicalAlc($('#alc').value);const alcs=[...new Set(data.map(x=>canonicalAlc(x.alc)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));$('#alc').innerHTML='<option value="">Todas</option>'+alcs.map(x=>`<option value="${safe(x)}">${safe(x)}</option>`).join('');$('#alc').value=alcs.includes(selected)?selected:'';$('#total').textContent=data.length.toLocaleString('es-MX');$('#countAlc').textContent=alcs.length;$('#status').textContent=official.length?'● '+official.length.toLocaleString('es-MX')+' registros oficiales cargados':'● Datos de referencia';}
 function filter(){const q=norm($('#search').value),a=$('#alc').value,k=$('#kind').value;filtered=data.filter(x=>(!q||norm([x.name,x.alc,x.col,x.address].join(' ')).includes(q))&&(!a||canonicalAlc(x.alc)===a)&&(!k||x.kind===k)&&(!day||x.days.includes(day))&&(!$('#favoriteOnly').checked||fav.has(x.id)));$('#shown').textContent=filtered.length.toLocaleString('es-MX');$('#resultLabel').textContent=filtered.length+' encontrados';renderList();renderMap()}
 function google(x){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(Number.isFinite(x.lat)&&Number.isFinite(x.lng)?x.lat+','+x.lng:[x.address,x.col,x.alc,'Ciudad de México'].filter(Boolean).join(', '))}
 function renderList(){const target=$('#list');if(!filtered.length){target.innerHTML='<div class="empty">No se encontraron resultados. Prueba con otra zona o limpia los filtros.</div>';return}target.innerHTML=filtered.slice(0,250).map(x=>`<article class="item"><div class="item-head"><div><h3>${safe(x.name)}</h3><p>${safe([x.col,x.alc].filter(Boolean).join(' · '))}</p></div><button class="heart ${fav.has(x.id)?'on':''}" data-fav="${safe(x.id)}" title="Favorito">${fav.has(x.id)?'♥':'♡'}</button></div><p>⌁ ${safe(x.address||'Ubicación no detallada')}</p><p>◷ ${x.days.length?safe(x.days.join(', ')):'Días sin confirmar'}</p><div class="item-actions"><a class="linkbtn" href="${google(x)}" target="_blank" rel="noopener">↗ Cómo llegar</a><button class="linkbtn" data-edit="${safe(x.id)}">Editar datos</button>${Number.isFinite(x.lat)&&Number.isFinite(x.lng)?`<button class="linkbtn" data-zoom="${safe(x.id)}">Ver en mapa</button>`:''}</div></article>`).join('')+(filtered.length>250?`<p class="muted">Mostrando los primeros 250 resultados. Filtra para acotar la lista.</p>`:'')}
-function renderMap(){screenPoints=filtered.filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lng)&&x.lat>=ymin&&x.lat<=ymax&&x.lng>=xmin&&x.lng<=xmax);$('#mapLabel').textContent=screenPoints.length+' ubicaciones en mapa';const svg=$('#mapDots');if(!svg)return;svg.innerHTML=screenPoints.map((p,i)=>{const [x,y]=project(p.lat,p.lng);return `<circle data-marker="${i}" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${(4.2/Math.sqrt(view.scale)).toFixed(2)}" fill="#a6ed86" fill-opacity=".75" stroke="#091d12" stroke-width="1"><title>${safe(p.name+' · '+p.alc)}</title></circle>`}).join('');$('#pointInfo').style.display='none'}
+function renderMap(){screenPoints=filtered.filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lng)&&x.lat>=19.11&&x.lat<=19.61&&x.lng>=-99.37&&x.lng<=-98.99);$('#mapLabel').textContent=screenPoints.length+' ubicaciones en mapa';const svg=$('#mapDots');if(!svg)return;svg.innerHTML=screenPoints.map((p,i)=>{const [x,y]=project(p.lat,p.lng);return `<circle data-marker="${i}" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${(4.2/Math.sqrt(view.scale)).toFixed(2)}" fill="#a6ed86" fill-opacity=".75" stroke="#091d12" stroke-width="1"><title>${safe(p.name+' · '+p.alc)}</title></circle>`}).join('');$('#pointInfo').style.display='none'}
 function rerender(){full();syncControls();filter()}$('#days').innerHTML=['Todos',...DAYS].map(x=>`<button class="day" data-day="${x}">${x}</button>`).join('');function updateDays(){document.querySelectorAll('[data-day]').forEach(b=>b.classList.toggle('active',(b.dataset.day==='Todos'&&!day)||b.dataset.day===day))}$('#days').addEventListener('click',e=>{const b=e.target.closest('[data-day]');if(!b)return;day=b.dataset.day==='Todos'?'':b.dataset.day;updateDays();filter()});['search','alc','kind','favoriteOnly'].forEach(id=>$('#'+id).addEventListener(['search','alc','kind'].includes(id)?'input':'change',filter));$('#reset').addEventListener('click',()=>{$('#search').value='';$('#alc').value='';$('#kind').value='';$('#favoriteOnly').checked=false;day='';updateDays();filter()});$('#list').addEventListener('click',e=>{const b=e.target.closest('[data-fav],[data-edit],[data-zoom]');if(!b)return;const id=b.dataset.fav||b.dataset.edit||b.dataset.zoom;const x=data.find(v=>v.id===id);if(!x)return;if(b.hasAttribute('data-fav')){fav.has(id)?fav.delete(id):fav.add(id);store('tx_favorites',[...fav]);renderList()}else if(b.hasAttribute('data-edit'))openEditor(x);else {focusPoint(x)}});
 $('#eDays').innerHTML=DAYS.map(d=>`<label><input type="checkbox" value="${d}"> ${d}</label>`).join('');function openEditor(x){$('#editForm').reset();$('#dialogTitle').textContent=x?'Editar registro':'Añadir tianguis';$('#editId').value=x?.id||'';for(const [id,v] of Object.entries({eName:x?.name||'',eAlc:x?.alc||'',eCol:x?.col||'',eAddress:x?.address||'',eKind:x?.kind||'Tianguis',eLat:x?.lat??'',eLng:x?.lng??''}))$('#'+id).value=v;document.querySelectorAll('#eDays input').forEach(c=>c.checked=!!x?.days.includes(c.value));$('#editor').showModal()}$('#add').onclick=()=>openEditor(null);$('#cancel').onclick=()=>$('#editor').close();$('#editForm').onsubmit=e=>{e.preventDefault();const id=$('#editId').value||'custom-'+Date.now();const initial=data.find(x=>x.id===id);const x={id,name:$('#eName').value.trim(),alc:$('#eAlc').value.trim(),col:$('#eCol').value.trim(),address:$('#eAddress').value.trim(),kind:$('#eKind').value,days:[...document.querySelectorAll('#eDays input:checked')].map(x=>x.value),lat:$('#eLat').value?Number($('#eLat').value):null,lng:$('#eLng').value?Number($('#eLng').value):null,source:initial?.source||'Usuario'};if(!initial||id.startsWith('custom-')){extras=extras.filter(v=>v.id!==id);extras.push(x);store('tx_extras',extras)}else{patches[id]=x;store('tx_patches',patches)}$('#editor').close();rerender()};
 function parseCSV(text){text=text.replace(/^\uFEFF/,'');const rows=[];let row=[],v='',q=false;for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(q&&text[i+1]==='"'){v+='"';i++}else q=!q}else if(c===','&&!q){row.push(v);v=''}else if((c==='\n'||c==='\r')&&!q){if(c==='\r'&&text[i+1]==='\n')i++;row.push(v);if(row.some(z=>z.trim()))rows.push(row);row=[];v=''}else v+=c}row.push(v);if(row.some(z=>z.trim()))rows.push(row);return rows}
@@ -131,59 +131,57 @@ updateDays();loadMap();rerender();
  document.querySelectorAll('.gift .actions button').forEach(b=>b.addEventListener('click',()=>{if(window.innerWidth<=760)selectMobile('explore')}));
 })();
 
-// Mapa de calles vectorial sin API key: OpenFreeMap + MapLibre.
+// Selector de mapas: el mapa de alcaldías es la vista predeterminada.
 (function(){
- const holder=document.querySelector('#map'),panel=document.querySelector('#streetMap'),switcher=document.querySelector('#mapStreetToggle');
- if(!holder||!panel||!switcher)return;
- let live=null,enabled=false,ready=false;
- function fallback(reason){
-   holder.classList.remove('street-ready');holder.classList.add('offline-fallback');
-   enabled=false;switcher.textContent='Intentar mapa de calles';
-   if(reason)console.warn('Mapa de calles: '+reason);
- }
- function display(){
-   if(!ready||!live){fallback('Todavía no está disponible');return}
-   enabled=true;holder.classList.remove('offline-fallback');holder.classList.add('street-ready');
-   switcher.textContent='Ver plano sin conexión';
-   live.resize();redraw();
- }
- function redraw(){
-  if(!live||!live.isStyleLoaded())return;
-  const collection={type:'FeatureCollection',features:filtered.filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)&&p.lat>18.8&&p.lat<20&&p.lng>-100&&p.lng<-98.5).map(p=>({type:'Feature',geometry:{type:'Point',coordinates:[p.lng,p.lat]},properties:{name:p.name,col:p.col||'',alc:canonicalAlc(p.alc),address:p.address||'',days:(p.days||[]).join(', '),link:google(p)}}))};
-  const source=live.getSource('tianguis');
-  if(source){source.setData(collection);return}
-  live.addSource('tianguis',{type:'geojson',data:collection});
-  live.addLayer({id:'tianguis-points',type:'circle',source:'tianguis',paint:{'circle-radius':5,'circle-color':'#ff4b91','circle-opacity':.88,'circle-stroke-color':'#87344f','circle-stroke-width':1}});
-  live.on('click','tianguis-points',e=>{
-   const f=e.features?.[0];if(!f)return;
-   const p=f.properties;
-   const root=document.createElement('div');
-   const strong=document.createElement('strong');strong.textContent=p.name;root.appendChild(strong);
-   const desc=document.createElement('p');desc.textContent=[p.col,p.alc,p.address,p.days].filter(Boolean).join(' · ');root.appendChild(desc);
-   const a=document.createElement('a');a.href=p.link;a.target='_blank';a.rel='noopener';a.textContent='Cómo llegar ↗';root.appendChild(a);
-   new maplibregl.Popup().setLngLat(e.lngLat).setDOMContent(root).addTo(live);
-  });
-  live.on('mouseenter','tianguis-points',()=>{live.getCanvas().style.cursor='pointer'});
-  live.on('mouseleave','tianguis-points',()=>{live.getCanvas().style.cursor=''});
- }
- const original=renderMap;renderMap=function(){original();if(enabled)redraw()};
- switcher.addEventListener('click',()=>{if(enabled)fallback();else display()});
- const css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.append(css);
- const script=document.createElement('script');script.src='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
- script.onerror=()=>fallback('No se pudo cargar MapLibre');
- script.onload=()=>{
-  try{
-   if(!maplibregl.supported()){fallback('WebGL no disponible');return}
-   live=new maplibregl.Map({container:panel,style:'https://tiles.openfreemap.org/styles/liberty',center:[-99.14,19.38],zoom:10.7,attributionControl:true});
-   live.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
-   let watchdog=setTimeout(()=>{if(!ready)fallback('El proveedor no respondió')},10000);
-   live.on('load',()=>{clearTimeout(watchdog);ready=true;display()});
-   live.on('error',e=>{if(!ready)console.warn('Esperando mapas: ',e.error?.message)});
-  }catch(err){fallback(err.message)}
+ const holder=document.querySelector('#map'),panel=document.querySelector('#streetMap'),button=document.querySelector('#mapStreetToggle');
+ if(!holder||!panel||!button)return;
+ let live=null,loaded=false,mode='offline',loading=false;
+ const setMode=modeNext=>{
+  mode=modeNext;
+  holder.classList.toggle('street-ready',mode==='online'&&loaded);
+  holder.classList.toggle('offline-fallback',mode!=='online'||!loaded);
+  button.textContent=mode==='online'?'Ver mapa de alcaldías':'Ver mapa de calles';
+  if(mode==='online'&&loaded){live.resize();drawMarkers();}
  };
- document.head.append(script);
- window.addEventListener('resize',()=>{if(enabled)live?.resize()});
- document.querySelectorAll('[data-mobile-view="map"]').forEach(b=>b.addEventListener('click',()=>setTimeout(()=>{if(enabled)live?.resize()},180)));
- fallback();
+ const drawMarkers=()=>{
+  if(!loaded||!live?.isStyleLoaded())return;
+  const geo={type:'FeatureCollection',features:filtered.filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)).map(p=>({type:'Feature',geometry:{type:'Point',coordinates:[p.lng,p.lat]},properties:{name:p.name,col:p.col||'',alc:canonicalAlc(p.alc),address:p.address||'',days:(p.days||[]).join(', '),link:google(p)}}))};
+  const src=live.getSource('tianguis');
+  if(src){src.setData(geo);return}
+  live.addSource('tianguis',{type:'geojson',data:geo});
+  live.addLayer({id:'tianguis-dots',type:'circle',source:'tianguis',paint:{'circle-color':'#ff438b','circle-radius':5,'circle-stroke-color':'#732743','circle-stroke-width':1}});
+  live.on('click','tianguis-dots',ev=>{
+   const p=ev.features?.[0]?.properties;if(!p)return;
+   const d=document.createElement('div');
+   const h=document.createElement('strong');h.textContent=p.name;d.append(h);
+   const info=document.createElement('p');info.textContent=[p.col,p.alc,p.address,p.days].filter(Boolean).join(' · ');d.append(info);
+   const link=document.createElement('a');link.href=p.link;link.target='_blank';link.rel='noopener';link.textContent='Cómo llegar ↗';d.append(link);
+   new maplibregl.Popup().setLngLat(ev.lngLat).setDOMContent(d).addTo(live);
+  });
+ };
+ const original=renderMap;renderMap=function(){original();if(mode==='online')drawMarkers()};
+ const loadOnline=()=>{
+  if(loaded){setMode('online');return}
+  if(loading)return;
+  loading=true;button.disabled=true;button.textContent='Cargando calles…';
+  const css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.append(css);
+  const js=document.createElement('script');js.src='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+  const fail=()=>{loading=false;button.disabled=false;setMode('offline')};
+  js.onerror=fail;
+  js.onload=()=>{
+   try{
+    if(!maplibregl.supported())return fail();
+    live=new maplibregl.Map({container:panel,style:'https://tiles.openfreemap.org/styles/liberty',center:[-99.14,19.38],zoom:10.7});
+    live.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
+    const timer=setTimeout(()=>{if(!loaded)fail()},12000);
+    live.once('load',()=>{clearTimeout(timer);loaded=true;loading=false;button.disabled=false;setMode('online')});
+   }catch(e){fail()}
+  };
+  document.head.append(js);
+ };
+ button.addEventListener('click',()=>{if(mode==='online'){setMode('offline')}else loadOnline()});
+ window.addEventListener('resize',()=>{if(mode==='online')live?.resize()});
+ document.querySelectorAll('[data-mobile-view="map"]').forEach(el=>el.addEventListener('click',()=>setTimeout(()=>{if(mode==='online')live?.resize()},150)));
+ setMode('offline');
 })();
 </script></body></html>
