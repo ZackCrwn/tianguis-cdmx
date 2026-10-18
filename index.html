@@ -76,7 +76,24 @@ function decodeDay(raw){const s=norm(raw);return DAYS.filter((d,i)=>s.includes(n
 function fromCSV(text,type){const rows=parseCSV(text);if(rows.length<2)throw Error('El archivo CSV está vacío.');const headers=rows.shift();return rows.map((r,i)=>convertFeature({properties:Object.fromEntries(headers.map((h,j)=>[h,r[j]||'']))},i,type))}function fromGeoJSON(json,type){const features=json.type==='FeatureCollection'?json.features:Array.isArray(json)?json:json.type==='Feature'?[json]:[];if(!features.length)throw Error('El archivo no contiene entidades GeoJSON.');return features.map((f,i)=>convertFeature(f,i,type))}function inspectJSON(text,type){return fromGeoJSON(JSON.parse(text),type)}
 $('#import').onclick=()=>$('#file').click();$('#mobileImport').onclick=()=>$('#file').click();$('#mobileSync').onclick=()=>$('#sync').click();$('#file').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const s=await f.text(),items=f.name.toLowerCase().endsWith('.csv')?fromCSV(s,'Tianguis'):inspectJSON(s,'Tianguis');if(!items.length)throw Error('No se encontraron filas.');official=items;store('tx_official',official);rerender();alert('Se importaron '+items.length+' ubicaciones. Nota: los días u horarios no presentes en el archivo se mostrarán sin confirmar.')}catch(err){alert('No se pudo importar: '+err.message)}e.target.value=''};
 async function sync(){const b=$('#sync');b.disabled=true;b.textContent='Consultando portal oficial…';try{const api='https://datos.cdmx.gob.mx/api/3/action/package_show?id=tianguis-de-la-ciudad-de-mexico';const r=await fetch(api);if(!r.ok)throw Error('El servidor oficial no respondió');const j=await r.json();if(!j.success)throw Error('No se pudieron consultar los recursos');const resources=j.result.resources||[];const geo=resources.find(x=>/geojson/i.test(x.format||''));const csv=resources.find(x=>/csv/i.test(x.format||'')&&!/diccionario/i.test(x.name||''));const rs=[geo,csv].filter(Boolean);let items=null,lastErr='';for(const res of rs){try{const r2=await fetch(res.url);if(!r2.ok)throw Error('Descarga no disponible');const t=await r2.text();items=/geojson/i.test(res.format)?inspectJSON(t,'Tianguis'):fromCSV(t,'Tianguis');if(items.length)break}catch(e){lastErr=e.message}}if(!items?.length)throw Error(lastErr||'No se pudo interpretar la base');official=items;store('tx_official',official);rerender();alert('Listo: '+items.length+' registros importados desde el portal oficial. Los días y horarios que la fuente no proporcione quedan sin confirmar.')}catch(e){$('#notice').innerHTML='No se pudo descargar automáticamente el catálogo oficial. <a href="https://datos.cdmx.gob.mx/dataset/tianguis-de-la-ciudad-de-mexico" target="_blank" rel="noopener">Descarga el GeoJSON oficial aquí</a> y pulsa «Importar CSV / GeoJSON». El mapa de coordenadas funciona sin conectarse a proveedores externos. Motivo: '+safe(e.message)}finally{b.disabled=false;b.textContent='↻ Actualizar catálogo completo'}}$('#sync').onclick=sync;
-updateDays();loadMap();rerender();if(!official.length){sync().catch(err=>console.warn(err))}
+updateDays();loadMap();rerender();
+(async function cargarCatalogoIncluido(){
+ try{
+  const response=await fetch('./catalogo.csv?v=1',{cache:'no-store'});
+  if(!response.ok)throw Error('No se pudo abrir catalogo.csv (HTTP '+response.status+')');
+  const csv=await response.text();
+  const items=fromCSV(csv,'Tianguis').filter(x=>x.lat!==null&&x.lng!==null&&x.address!=='ACTUALMENTE NO SE INSTALA');
+  if(!items.length)throw Error('El archivo no contiene ubicaciones válidas');
+  official=items;
+  store('tx_official',official);
+  rerender();
+  const el=document.querySelector('#notice');
+  if(el)el.textContent='Catálogo cargado: '+items.length+' tianguis con ubicación. Fuente: CSV incorporado al proyecto. Confirma los horarios antes de visitar.';
+ }catch(error){
+  console.error('No se pudo cargar el catálogo local:',error);
+  const el=document.querySelector('#notice');if(el)el.textContent='No se pudo cargar el catálogo del repositorio: '+error.message;
+ }
+})();
 
 // Vistas móviles independientes; la app de escritorio queda sin cambios.
 (function(){
