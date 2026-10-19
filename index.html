@@ -75,7 +75,7 @@ body{background:radial-gradient(circle at 85% 3%,#ffe0d8 0,transparent 33%),radi
 @media(max-width:760px){#quickGuide>div:nth-child(3){grid-template-columns:1fr 1fr}#quickGuide button{font-size:13px;padding:10px 6px}#mascotParade img{height:60px!important}#quickGuide{margin-top:10px!important}.stat{padding:8px 5px}.stat b{font-size:19px}}
 </style><style id="v3-isolated-layout">
 .gift,#quickGuide,#mascotParade,#mambaRecommend,.sidebar>.eyebrow,.sidebar>label[for="search"],.sidebar>.divider,.sidebar>.results,.mobile-nav,.mobile-tools,.footer-scene{display:none!important}
-.shell{max-width:1320px}.top{display:flex!important;align-items:center;gap:12px;flex-wrap:wrap}
+.shell{max-width:none!important;width:100%!important;padding-left:clamp(12px,2vw,36px)!important;padding-right:clamp(12px,2vw,36px)!important}.top{display:flex!important;align-items:center;gap:12px;flex-wrap:wrap}
 .top .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0 0 0 auto;gap:6px}.top .stat{padding:7px 10px;min-width:0}.top .stat b{font-size:16px}.top .stat small{font-size:10px}
 .workspace{display:flex!important;flex-direction:column!important;gap:14px}.workspace .map-pane{order:0;width:100%!important;min-width:0!important;height:auto}.workspace .sidebar{order:1;width:100%!important;max-width:none!important;max-height:none!important;overflow:visible!important;display:block!important}
 #map{height:55vh!important;min-height:360px!important;max-height:650px!important}
@@ -128,7 +128,7 @@ body{background:radial-gradient(circle at 85% 3%,#ffe0d8 0,transparent 33%),radi
 {name:'Mercado sobre ruedas de Lomas de Sotelo',alc:'Miguel Hidalgo',col:'Lomas de Sotelo',address:'Presa Salinillas entre Anillo Periférico y Presa Valsequillo',days:['Sáb'],kind:'Mercado sobre ruedas'},
 {name:'Mercado sobre ruedas del Ajusco',alc:'Coyoacán',col:'Ajusco',address:'Coras esquina Nezahualcóyotl',days:['Dom'],kind:'Mercado sobre ruedas'}
 ].map((x,i)=>({...x,id:'example-'+i,source:'SEDECO · rutas históricas',start:'',end:'',verified:false,lat:null,lng:null}));
-const $=s=>document.querySelector(s);const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();const store=(k,v)=>localStorage.setItem(k,JSON.stringify(v));const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};let extras=[],patches={},fav=new Set(load('tx_favorites',[])),official=load('tx_official',[]),day='',map=null,layer=null,filtered=[];let data=[];const full=()=>{
+const $=s=>document.querySelector(s);const safe=s=>String(s??'').replaceAll('Ã‘','Ñ').replaceAll('Ã±','ñ').replaceAll('Ã¡','á').replaceAll('Ã©','é').replaceAll('Ã­','í').replaceAll('Ã³','ó').replaceAll('Ãº','ú').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();const store=(k,v)=>localStorage.setItem(k,JSON.stringify(v));const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};let extras=[],patches={},fav=new Set(load('tx_favorites',[])),official=load('tx_official',[]),day='',map=null,layer=null,filtered=[];let data=[];const full=()=>{
  const set=new Map();
  for(const x of (official.length?official:startData))set.set(x.id,{...x});
  const groups=new Map();
@@ -210,7 +210,7 @@ updateDays();loadMap();rerender();
  try{
   const response=await fetch('./catalogo.csv?v=1',{cache:'no-store'});
   if(!response.ok)throw Error('No se pudo abrir catalogo.csv (HTTP '+response.status+')');
-  const csv=await response.text();
+  const raw=await response.arrayBuffer();let csv;try{csv=new TextDecoder('utf-8',{fatal:true}).decode(raw)}catch{csv=new TextDecoder('windows-1252').decode(raw)}
   const items=fromCSV(csv,'Tianguis').filter(x=>x.lat!==null&&x.lng!==null&&x.address!=='ACTUALMENTE NO SE INSTALA');
   if(!items.length)throw Error('El archivo no contiene ubicaciones válidas');
   official=items.map(x=>({...x,alc:canonicalAlc(x.alc)}));
