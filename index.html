@@ -86,7 +86,7 @@ body{background:radial-gradient(circle at 85% 3%,#ffe0d8 0,transparent 33%),radi
 #v3Controls #nearbyDrawer{margin:10px 0}
 #v3Tabs{display:flex;gap:8px;margin:9px 0 14px}#v3Tabs button{flex:1;min-height:44px;border-radius:12px;border:1px solid #e9c5d6;background:#fff6fa;color:#a42f68;font-weight:800;cursor:pointer}
 #v3Tabs button[aria-selected="true"]{background:#ec487e;color:#fff}
-#list .item{padding:14px;border-radius:15px;margin-bottom:9px}
+#quickTomorrow,#quickVisit{display:none!important}#list .item{padding:14px;border-radius:15px;margin-bottom:9px}
 #list .item .item-actions{display:none}#list .item.v3-open .item-actions{display:flex}
 #list .item .v3-details{display:none}#list .item.v3-open .v3-details{display:block}
 #list .item .v3-toggle{border:none;background:transparent;color:#a42f68;cursor:pointer;min-height:34px;font-weight:750}
@@ -517,6 +517,8 @@ daySelect.innerHTML='<option value="">Todos los días</option><option value="tod
 hiddenDay.parentNode.insertBefore(daySelect,hiddenDay);hiddenDay.style.display='none';
 const dayCodes=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 daySelect.addEventListener('change',()=>{let value=daySelect.value;const today=({Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6})[new Intl.DateTimeFormat('en-US',{timeZone:'America/Mexico_City',weekday:'short'}).format(new Date())]??0;if(value==='today')value=dayCodes[today];if(value==='tomorrow')value=dayCodes[(today+1)%7];const target=[...hiddenDay.querySelectorAll('[data-day]')].find(b=>b.dataset.day===(value||'Todos'));target?.click();v3Limit=20});
+const hint=document.createElement('small');hint.textContent='Escribe para filtrar; si ingresas un C.P. de cinco dígitos y presionas Enter, se buscará esa zona.';hint.style.cssText='display:block;color:#926579;margin-top:6px';line.after(hint);
+search.addEventListener('keydown',e=>{const value=search.value.trim();if(e.key==='Enter'&&/^\d{5}$/.test(value)){e.preventDefault();const addr=q('nearbyAddress');if(addr){addr.value=value;search.value='';search.dispatchEvent(new Event('input'));q('nearbyFind')?.click();}}});
 const originalSearch=search.value;
 let entered=originalSearch;
 search.addEventListener('input',()=>{v3Limit=20;entered=search.value},{capture:true});
